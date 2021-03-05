@@ -6,7 +6,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
+	"github.com/hashicorp/go-hclog"
 	"net"
 	"os"
 	"path/filepath"
@@ -19,8 +19,8 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/gnuflag"
 	"github.com/juju/loggo"
+	"github.com/juju/mgo"
 	"github.com/juju/replicaset"
-	"gopkg.in/mgo.v2"
 )
 
 const rebootstrapDoc = `
@@ -167,8 +167,11 @@ func makeRaftConfig(machineID string) (*raft.Config, error) {
 	// stops when it's demoted if it's the leader.
 	raftConfig.ShutdownOnRemove = false
 
-	logWriter := &loggoWriter{logger, loggo.DEBUG}
-	raftConfig.Logger = log.New(logWriter, "", 0)
+	raftConfig.Logger = hclog.New(&hclog.LoggerOptions{
+							Name:   "Debug",
+							Output: os.Stdout,
+							Level:  hclog.Debug,
+						})
 
 	if err := raft.ValidateConfig(raftConfig); err != nil {
 		return nil, errors.Annotate(err, "validating raft config")
@@ -228,8 +231,12 @@ func NewSnapshotStore(
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, errors.Trace(err)
 	}
-	logWriter := &loggoWriter{logger, loggo.DEBUG}
-	logLogger := log.New(logWriter, logPrefix, 0)
+	
+	logLogger := hclog.New(&hclog.LoggerOptions{
+					Name:   logPrefix,
+					Output: os.Stdout,
+					Level:  hclog.Debug,
+				})
 
 	snaps, err := raft.NewFileSnapshotStoreWithLogger(dir, retain, logLogger)
 	if err != nil {
